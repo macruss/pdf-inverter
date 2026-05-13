@@ -73,7 +73,7 @@ func invertImageXObject(xrt *model.XRefTable, xObjDict types.Dict, name string, 
 	}
 	// Carry over image metadata (dimensions, color space, BitsPerComponent, etc.)
 	for k, v := range sd.Dict {
-		if k != "Filter" && k != "Length" {
+		if k != "Filter" && k != "Length" && k != "DecodeParms" {
 			newSD.Dict[k] = v
 		}
 	}

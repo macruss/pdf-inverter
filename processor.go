@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -64,6 +65,9 @@ func processPages(ctx *model.Context, cfg Config) error {
 
 		content, err := xrt.PageContent(pageDict, pageNr)
 		if err != nil {
+			if errors.Is(err, model.ErrNoContent) {
+				continue
+			}
 			return fmt.Errorf("page %d: get content: %w", pageNr, err)
 		}
 
