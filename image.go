@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"compress/zlib"
 	"fmt"
-	"io"
 
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
@@ -16,28 +13,6 @@ func invertImageBytes(data []byte) []byte {
 		out[i] = 255 - b
 	}
 	return out
-}
-
-func invertFlateDecode(compressed []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(compressed))
-	if err != nil {
-		return nil, fmt.Errorf("zlib open: %w", err)
-	}
-	raw, err := io.ReadAll(r)
-	r.Close()
-	if err != nil {
-		return nil, fmt.Errorf("zlib read: %w", err)
-	}
-
-	inverted := invertImageBytes(raw)
-
-	var buf bytes.Buffer
-	w := zlib.NewWriter(&buf)
-	if _, err := w.Write(inverted); err != nil {
-		return nil, fmt.Errorf("zlib write: %w", err)
-	}
-	w.Close()
-	return buf.Bytes(), nil
 }
 
 func invertPageImages(xrt *model.XRefTable, pageDict types.Dict) error {

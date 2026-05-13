@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"compress/zlib"
-	"io"
 	"testing"
 )
 
@@ -36,28 +34,3 @@ func TestInvertImageBytes_Mixed(t *testing.T) {
 	}
 }
 
-func TestRecompressFlateDecode(t *testing.T) {
-	original := []byte{10, 20, 30, 40, 50}
-
-	var compressed bytes.Buffer
-	w := zlib.NewWriter(&compressed)
-	w.Write(original)
-	w.Close()
-
-	inverted, err := invertFlateDecode(compressed.Bytes())
-	if err != nil {
-		t.Fatalf("invertFlateDecode: %v", err)
-	}
-
-	r, err := zlib.NewReader(bytes.NewReader(inverted))
-	if err != nil {
-		t.Fatalf("decompress result: %v", err)
-	}
-	got, _ := io.ReadAll(r)
-	r.Close()
-
-	want := []byte{245, 235, 225, 215, 205}
-	if !bytes.Equal(got, want) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-}
