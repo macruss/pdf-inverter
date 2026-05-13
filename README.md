@@ -26,10 +26,19 @@ pdf-inverter --invert-images document.pdf document-dark.pdf
 
 ## Install
 
+**Build from source (requires Go):**
+
 ```bash
 git clone https://github.com/ruslanm/pdf-inverter
 cd pdf-inverter
 go build -o pdf-inverter .
+cp pdf-inverter /usr/local/bin/pdf-inverter
+```
+
+**macOS — install to PATH after building:**
+
+```bash
+cp pdf-inverter /usr/local/bin/pdf-inverter
 ```
 
 ## How it works
