@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,7 +29,7 @@ func Process(inputPath, outputPath string, cfg Config) error {
 		return fmt.Errorf("read PDF: %w", err)
 	}
 
-	if err := processPages(ctx); err != nil {
+	if err := processPages(ctx, cfg); err != nil {
 		return err
 	}
 
@@ -52,7 +53,7 @@ func Process(inputPath, outputPath string, cfg Config) error {
 	return nil
 }
 
-func processPages(ctx *model.Context) error {
+func processPages(ctx *model.Context, cfg Config) error {
 	xrt := ctx.XRefTable
 	if err := xrt.EnsurePageCount(); err != nil {
 		return fmt.Errorf("ensure page count: %w", err)
@@ -63,17 +64,45 @@ func processPages(ctx *model.Context) error {
 			return fmt.Errorf("page %d: get dict: %w", pageNr, err)
 		}
 
+		content, err := xrt.PageContent(pageDict, pageNr)
+		if err != nil {
+			if errors.Is(err, model.ErrNoContent) {
+				continue
+			}
+			return fmt.Errorf("page %d: get content: %w", pageNr, err)
+		}
+
 		w, h := mediaBoxDims(xrt, pageDict)
 
-		if err := applyDifferenceOverlay(xrt, pageDict, w, h); err != nil {
-			return fmt.Errorf("page %d: overlay: %w", pageNr, err)
+		// Prepend black background, then append inverted content.
+		bg := fmt.Sprintf("q 0 0 0 rg 0 0 %.4f %.4f re f Q\n", w, h)
+		inverted := InvertContentStream(content)
+		combined := append([]byte(bg), inverted...)
+
+		sd, err := xrt.NewStreamDictForBuf(combined)
+		if err != nil {
+			return fmt.Errorf("page %d: new stream: %w", pageNr, err)
+		}
+		if err := sd.Encode(); err != nil {
+			return fmt.Errorf("page %d: encode stream: %w", pageNr, err)
+		}
+		indRef, err := xrt.IndRefForNewObject(*sd)
+		if err != nil {
+			return fmt.Errorf("page %d: insert stream: %w", pageNr, err)
+		}
+		pageDict["Contents"] = *indRef
+
+		if cfg.InvertImages {
+			if err := invertPageImages(xrt, pageDict); err != nil {
+				return fmt.Errorf("page %d: images: %w", pageNr, err)
+			}
 		}
 	}
 	return nil
 }
 
 func mediaBoxDims(xrt *model.XRefTable, pageDict types.Dict) (w, h float64) {
-	w, h = 612, 792 // fallback: US Letter
+	w, h = 612, 792
 	obj, ok := pageDict["MediaBox"]
 	if !ok {
 		return
@@ -116,60 +145,4 @@ func pdfFloat(obj types.Object) float64 {
 		return float64(v)
 	}
 	return 0
-}
-
-// applyDifferenceOverlay adds a full-page white rectangle with Difference blend
-// mode on top of the page content, visually inverting all colors.
-func applyDifferenceOverlay(xrt *model.XRefTable, pageDict types.Dict, w, h float64) error {
-	const gsName = "GSInvert"
-
-	// Create a graphics state dict with BM /Difference
-	gsDict := types.Dict{
-		"Type": types.Name("ExtGState"),
-		"BM":   types.Name("Difference"),
-	}
-	gsRef, err := xrt.IndRefForNewObject(gsDict)
-	if err != nil {
-		return fmt.Errorf("create GS: %w", err)
-	}
-
-	// Add GS to page Resources/ExtGState
-	if err := addExtGState(xrt, pageDict, gsName, *gsRef); err != nil {
-		return fmt.Errorf("add ExtGState resource: %w", err)
-	}
-
-	// Append: save state, activate Difference GS, draw white rect, restore state
-	overlay := fmt.Sprintf("q /%s gs 1 1 1 rg 0 0 %.4f %.4f re f Q\n", gsName, w, h)
-	return xrt.AppendContent(pageDict, []byte(overlay))
-}
-
-// addExtGState ensures Resources/ExtGState[name]=ref exists on the page.
-func addExtGState(xrt *model.XRefTable, pageDict types.Dict, name string, ref types.IndirectRef) error {
-	// Get or create Resources dict
-	resources, err := getOrCreateDict(xrt, pageDict, "Resources")
-	if err != nil {
-		return err
-	}
-
-	// Get or create ExtGState dict within Resources
-	extGState, err := getOrCreateDict(xrt, resources, "ExtGState")
-	if err != nil {
-		return err
-	}
-
-	extGState[name] = ref
-	return nil
-}
-
-func getOrCreateDict(xrt *model.XRefTable, parent types.Dict, key string) (types.Dict, error) {
-	if obj, ok := parent[key]; ok {
-		d, err := xrt.DereferenceDict(obj)
-		if err != nil {
-			return nil, err
-		}
-		return d, nil
-	}
-	d := types.Dict{}
-	parent[key] = d
-	return d, nil
 }

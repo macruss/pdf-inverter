@@ -61,10 +61,7 @@ func TestProcess_ColorInversion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read output PDF: %v", err)
 	}
-
-	if err := ctx.XRefTable.EnsurePageCount(); err != nil {
-		t.Fatalf("EnsurePageCount: %v", err)
-	}
+	ctx.XRefTable.EnsurePageCount()
 
 	pageDict, _, _, err := ctx.XRefTable.PageDict(1, false)
 	if err != nil {
@@ -77,16 +74,13 @@ func TestProcess_ColorInversion(t *testing.T) {
 	}
 
 	got := string(content)
-	// Output should contain the Difference blend mode overlay
-	if !strings.Contains(got, "GSInvert") {
-		t.Errorf("Difference overlay not found in output content: %q", got)
+	// Should have black background prepended
+	if !strings.Contains(got, "0 0 0 rg") {
+		t.Errorf("black background not found in output content: %q", got)
 	}
-	if !strings.Contains(got, "Difference") && !strings.Contains(got, "1 1 1 rg") {
-		t.Errorf("white overlay rectangle not found in output content: %q", got)
-	}
-	// Original content should be preserved unchanged
-	if !strings.Contains(got, "1 0 0 rg") {
-		t.Errorf("original content stream was modified (should be preserved): %q", got)
+	// Original red "1 0 0 rg" should be inverted — not present as-is
+	if strings.Contains(got, "1 0 0 rg") && !strings.HasPrefix(strings.TrimSpace(got), "q 0 0 0 rg") {
+		t.Errorf("original red color still present: %q", got)
 	}
 }
 

@@ -6,8 +6,6 @@ import (
 	"unicode"
 )
 
-// tokenize splits PDF content stream bytes into tokens, preserving whitespace
-// as separate single-char tokens so reconstruction is lossless.
 func tokenize(data []byte) []string {
 	var tokens []string
 	var cur []byte
@@ -37,57 +35,104 @@ func isNumeric(s string) bool {
 	return err == nil
 }
 
-func invertFloat(s string) string {
-	v, _ := strconv.ParseFloat(s, 64)
-	return strconv.FormatFloat(invertValue(v), 'f', 6, 64)
+func fmtFloat(v float64) string {
+	return strconv.FormatFloat(v, 'f', 6, 64)
 }
 
-// countPreceding counts consecutive numeric tokens (skipping whitespace) before index i.
-// Stops at the first non-whitespace, non-numeric token.
-func countPreceding(tokens []string, i int) int {
+// invertLastN inverts the last n numeric tokens in out, skipping whitespace.
+func invertLastN(out []string, n int) {
+	for j := len(out) - 1; j >= 0 && n > 0; j-- {
+		if isNumeric(out[j]) {
+			v, _ := strconv.ParseFloat(out[j], 64)
+			out[j] = fmtFloat(invertValue(v))
+			n--
+		} else if !isWhitespace(out[j]) {
+			break
+		}
+	}
+}
+
+// countLastNumerics counts consecutive numerics (skipping whitespace) at end of out.
+func countLastNumerics(out []string) int {
 	count := 0
-	for j := i - 1; j >= 0; j-- {
-		if isNumeric(tokens[j]) {
+	for j := len(out) - 1; j >= 0; j-- {
+		if isNumeric(out[j]) {
 			count++
-		} else if !isWhitespace(tokens[j]) {
+		} else if !isWhitespace(out[j]) {
 			break
 		}
 	}
 	return count
 }
 
-// invertPreceding inverts n numeric tokens immediately before index i, skipping whitespace.
-func invertPreceding(tokens []string, i, n int) {
-	for j := i - 1; j >= 0 && n > 0; j-- {
-		if isNumeric(tokens[j]) {
-			tokens[j] = invertFloat(tokens[j])
-			n--
-		} else if !isWhitespace(tokens[j]) {
+// collectAndRemoveCMYK finds the last 4 numeric tokens in out, parses them as
+// C,M,Y,K, removes them (and adjacent whitespace) from out, and returns the
+// trimmed slice and the four float values. Returns nil if fewer than 4 found.
+func collectAndRemoveCMYK(out []string) (trimmed []string, c, m, y, k float64, ok bool) {
+	vals := make([]float64, 0, 4)
+	indices := make([]int, 0, 4)
+	for j := len(out) - 1; j >= 0 && len(vals) < 4; j-- {
+		if isNumeric(out[j]) {
+			v, _ := strconv.ParseFloat(out[j], 64)
+			vals = append([]float64{v}, vals...)
+			indices = append([]int{j}, indices...)
+		} else if !isWhitespace(out[j]) {
 			break
 		}
 	}
+	if len(vals) != 4 {
+		return out, 0, 0, 0, 0, false
+	}
+	// truncate out from the first operand (including any leading whitespace before it)
+	cut := indices[0]
+	for cut > 0 && isWhitespace(out[cut-1]) {
+		cut--
+	}
+	return out[:cut], vals[0], vals[1], vals[2], vals[3], true
 }
 
-// InvertContentStream rewrites color operands in a PDF content stream,
-// inverting all channel values. Non-color operators are passed through unchanged.
-// sc/SC/scn/SCN operand count is inferred from consecutive preceding numerics.
+// InvertContentStream rewrites color operands in a PDF content stream.
+// CMYK operators (k/K) are converted to visually-correct inverted RGB (rg/RG).
+// Other color operators are inverted per-channel.
 func InvertContentStream(data []byte) []byte {
 	tokens := tokenize(data)
-	for i, tok := range tokens {
+	out := make([]string, 0, len(tokens))
+
+	for _, tok := range tokens {
+		if isWhitespace(tok) {
+			out = append(out, tok)
+			continue
+		}
 		switch tok {
 		case "rg", "RG":
-			invertPreceding(tokens, i, 3)
+			invertLastN(out, 3)
+			out = append(out, tok)
 		case "g", "G":
-			invertPreceding(tokens, i, 1)
+			invertLastN(out, 1)
+			out = append(out, tok)
 		case "k", "K":
-			invertPreceding(tokens, i, 4)
+			trimmed, c, m, y, k, ok := collectAndRemoveCMYK(out)
+			if ok {
+				r, g, b := cmykToInvertedRGB(c, m, y, k)
+				out = append(trimmed, " ", fmtFloat(r), " ", fmtFloat(g), " ", fmtFloat(b), " ")
+				if tok == "k" {
+					out = append(out, "rg")
+				} else {
+					out = append(out, "RG")
+				}
+			} else {
+				out = append(out, tok)
+			}
 		case "sc", "SC", "scn", "SCN":
-			n := countPreceding(tokens, i)
-			invertPreceding(tokens, i, n)
+			invertLastN(out, countLastNumerics(out))
+			out = append(out, tok)
+		default:
+			out = append(out, tok)
 		}
 	}
+
 	var buf bytes.Buffer
-	for _, t := range tokens {
+	for _, t := range out {
 		buf.WriteString(t)
 	}
 	return buf.Bytes()
