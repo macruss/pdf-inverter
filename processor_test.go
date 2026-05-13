@@ -90,7 +90,9 @@ func TestProcess_OutputIsAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inputFile.Write(minimalPDF())
+	if _, err := inputFile.Write(minimalPDF()); err != nil {
+		t.Fatal(err)
+	}
 	inputFile.Close()
 
 	outputPath := inputFile.Name() + "-out.pdf"

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
@@ -30,7 +31,7 @@ func Process(inputPath, outputPath string, cfg Config) error {
 		return err
 	}
 
-	tmp, err := os.CreateTemp("", "pdf-inverter-*.pdf")
+	tmp, err := os.CreateTemp(filepath.Dir(outputPath), "pdf-inverter-*.pdf")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}
