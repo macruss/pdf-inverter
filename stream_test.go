@@ -69,8 +69,8 @@ func TestInvertContentStream_WithNewlines(t *testing.T) {
 }
 
 func TestInvertContentStream_SC(t *testing.T) {
-	got := string(InvertContentStream([]byte("0.5 0.5 0.5 sc")))
-	want := "0.500000 0.500000 0.500000 sc"
+	got := string(InvertContentStream([]byte("0.2 0.8 0.1 sc")))
+	want := "0.800000 0.200000 0.900000 sc"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
