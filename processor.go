@@ -74,8 +74,10 @@ func processPages(ctx *model.Context, cfg Config) error {
 
 		w, h := mediaBoxDims(xrt, pageDict)
 
-		// Prepend black background, then append inverted content.
-		bg := fmt.Sprintf("q 0 0 0 rg 0 0 %.4f %.4f re f Q\n", w, h)
+		// Prepend black background + white default colors, then inverted content.
+		// The white defaults ensure text without an explicit fill color renders
+		// white on the black background instead of invisible (default black on black).
+		bg := fmt.Sprintf("q 0 0 0 rg 0 0 %.4f %.4f re f Q\n1 1 1 rg\n1 1 1 RG\n", w, h)
 		inverted := InvertContentStream(content)
 		combined := append([]byte(bg), inverted...)
 

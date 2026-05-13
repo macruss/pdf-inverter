@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(go run *)",
+      "Bash(./pdf-inverter)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(./pdf-inverter /nonexistent.pdf /tmp/out.pdf)",
+      "Bash(go version *)",
+      "Bash(cp /Users/rus/Projects/pdf-inverter/pdf-inverter /usr/local/bin/invertpdf)",
+      "Bash(invertpdf)",
+      "Bash(go list *)",
+      "Bash(go doc *)"
+    ]
+  }
+}
