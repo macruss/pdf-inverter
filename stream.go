@@ -95,6 +95,9 @@ func collectAndRemoveCMYK(out []string) (trimmed []string, c, m, y, k float64, o
 // CMYK operators (k/K) are converted to visually-correct inverted RGB (rg/RG).
 // Other color operators are inverted per-channel.
 func InvertContentStream(data []byte) []byte {
+	if len(data) == 0 {
+		return nil
+	}
 	tokens := tokenize(data)
 	out := make([]string, 0, len(tokens))
 

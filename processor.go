@@ -65,20 +65,17 @@ func processPages(ctx *model.Context, cfg Config) error {
 		}
 
 		content, err := xrt.PageContent(pageDict, pageNr)
-		if err != nil {
-			if errors.Is(err, model.ErrNoContent) {
-				continue
-			}
+		if err != nil && !errors.Is(err, model.ErrNoContent) {
 			return fmt.Errorf("page %d: get content: %w", pageNr, err)
 		}
 
 		w, h := mediaBoxDims(xrt, pageDict)
 
 		// Prepend black background + white default colors, then inverted content.
-		// The white defaults ensure text without an explicit fill color renders
-		// white on the black background instead of invisible (default black on black).
+		// Blank pages (ErrNoContent) get only the black background — without this,
+		// intentionally blank book pages remain white in the dark output.
 		bg := fmt.Sprintf("q 0 0 0 rg 0 0 %.4f %.4f re f Q\n1 1 1 rg\n1 1 1 RG\n", w, h)
-		inverted := InvertContentStream(content)
+		inverted := InvertContentStream(content) // safe: InvertContentStream(nil) returns nil
 		combined := append([]byte(bg), inverted...)
 
 		sd, err := xrt.NewStreamDictForBuf(combined)

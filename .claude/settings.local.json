@@ -10,7 +10,18 @@
       "Bash(cp /Users/rus/Projects/pdf-inverter/pdf-inverter /usr/local/bin/invertpdf)",
       "Bash(invertpdf)",
       "Bash(go list *)",
-      "Bash(go doc *)"
+      "Bash(go doc *)",
+      "Bash(qlmanage -t -s 100 -o /tmp/ /tmp/test-bg-only.pdf)",
+      "Bash(sips -s format png /tmp/test-bg-only.pdf.png -o /tmp/test-bg-only-thumb.png)",
+      "Bash(python3 -c ' *)",
+      "Bash(qlmanage -t -s 200 -o /tmp/ /tmp/test-dark4.pdf)",
+      "Bash(qlmanage -t -s 300 -o /tmp/ /tmp/test-dark4.pdf)",
+      "Bash(python3 -c \"import fitz; print\\('PyMuPDF available'\\)\")",
+      "Bash(python3 -c \"import pypdf; print\\('pypdf available'\\)\")",
+      "Bash(python3 -c \"import pikepdf; print\\('pikepdf available'\\)\")",
+      "Bash(osascript -e 'quit app \"Preview\"')",
+      "Bash(open ~/Desktop/concurrency-dark.pdf)",
+      "Bash(pdftoppm -r 36 ~/Desktop/concurrency-dark.pdf /tmp/all-pages)"
     ]
   }
 }
