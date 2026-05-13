@@ -77,11 +77,16 @@ func TestProcess_ColorInversion(t *testing.T) {
 	}
 
 	got := string(content)
-	if !strings.Contains(got, "0.000000") {
-		t.Errorf("inverted red channel not found in output content: %q", got)
+	// Output should contain the Difference blend mode overlay
+	if !strings.Contains(got, "GSInvert") {
+		t.Errorf("Difference overlay not found in output content: %q", got)
 	}
-	if strings.Contains(got, "1 0 0 rg") {
-		t.Errorf("original red color still present in output content: %q", got)
+	if !strings.Contains(got, "Difference") && !strings.Contains(got, "1 1 1 rg") {
+		t.Errorf("white overlay rectangle not found in output content: %q", got)
+	}
+	// Original content should be preserved unchanged
+	if !strings.Contains(got, "1 0 0 rg") {
+		t.Errorf("original content stream was modified (should be preserved): %q", got)
 	}
 }
 
